@@ -1,21 +1,24 @@
-# utils/ai_assistant.py
 from openai import OpenAI
 
 class AttendanceAssistant:
+    """
+    Quản lý kết nối với API của OpenRouter để phân tích dữ liệu điểm danh.
+    Sử dụng model miễn phí tự động (openrouter/free).
+    """
     def __init__(self):
         self.client = None
         self.api_key = None
-        # Đã đổi model sang bản xịn nhất trên GoRouter của bạn
-        self.model_name = "claude-opus-5-thinking" 
+        self.model_name = "openrouter/free" 
 
-    def create_client(self, api_key):
+    def create_client(self, api_key: str) -> OpenAI:
+        """Tạo đối tượng client kết nối đến OpenRouter."""
         return OpenAI(
-            base_url="https://gorouter.app/v1",
+            base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
         )
 
-    def test_key(self, api_key):
-        # ĐÃ BYPASS: Bỏ qua việc dùng urllib gọi /models để tránh bị Firewall GoRouter chặn (Lỗi 403)
+    def test_key(self, api_key: str) -> tuple[bool, str]:
+        """Kiểm tra tính hợp lệ sơ bộ của API Key."""
         api_key = api_key.strip()
         if not api_key:
             return False, "Vui lòng nhập API Key!"

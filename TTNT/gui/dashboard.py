@@ -245,20 +245,34 @@ class DashboardWindow:
         today_date = datetime.now().date()
         today_str = today_date.strftime("%Y-%m-%d")
 
+        valid_history_rows = []
+
         for cls_name, students_in_cls in students_by_class.items():
             schedule = self.db.get_class_schedule(cls_name)
+            cls_student_ids = [s["student_id"] for s in students_in_cls]
+            cls_hist = [r for r in history_rows if r["student_id"] in cls_student_ids]
+            
             if schedule and schedule.get("start_date") and schedule.get("learning_days"):
                 try:
-                    sch_data = dict(schedule) # Tránh lỗi sqlite3.Row
+                    sch_data = dict(schedule)
                     st_date = datetime.strptime(sch_data["start_date"].strip(), "%Y-%m-%d").date()
                     
-                    # Logic khóa mốc tính toán (Giới hạn ở End Date hoặc Ngày hôm nay)
+                    en_date = None
                     if sch_data.get("end_date"):
                         en_date = datetime.strptime(sch_data["end_date"].strip(), "%Y-%m-%d").date()
                         end_bound = min(today_date, en_date)
                     else:
                         end_bound = today_date
                         
+                    # Loại bỏ các lượt điểm danh nằm ngoài khung thời gian của lịch học
+                    for r in cls_hist:
+                        try:
+                            r_date = datetime.strptime(r["attendance_date"], "%Y-%m-%d").date()
+                            if r_date >= st_date and (not en_date or r_date <= en_date):
+                                valid_history_rows.append(r)
+                        except:
+                            valid_history_rows.append(r)
+                            
                     l_days_str = str(sch_data["learning_days"]).strip()
                     l_days = [int(x) for x in l_days_str.split(",") if x] if l_days_str else []
                     
@@ -273,15 +287,16 @@ class DashboardWindow:
                                 classes_learning_today.add(cls_name)
                         curr += timedelta(days=1)
                         
-                    # Tổng lượt cần đi học = Số buổi học * Số sinh viên của lớp đó
                     expected_total += class_expected_days * len(students_in_cls)
                     
                 except Exception:
-                    pass
+                    valid_history_rows.extend(cls_hist)
             else:
-                # Lớp chưa cài lịch thì lấy lịch sử thực tế bù vào để không bị chia cho 0
-                cls_hist = [r for r in history_rows if r["student_id"] in [s["student_id"] for s in students_in_cls]]
+                valid_history_rows.extend(cls_hist)
                 expected_total += len(cls_hist)
+
+        # Ghi đè lại history_rows bằng dữ liệu đã lọc chuẩn
+        history_rows = valid_history_rows
 
         valid_learning_dates = sorted(list(valid_learning_dates))
         total_days_learned = len(valid_learning_dates)
@@ -442,7 +457,8 @@ class DashboardWindow:
         body.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
         columns = ("student_id", "full_name", "class_name", "absent_count", "late_count", "status")
-        tree = ttk.Treeview(body, columns=columns, show="headings", height=12)
+        self.absent_tree = ttk.Treeview(body, columns=columns, show="headings", height=12)
+        tree = self.absent_tree
         
         for col, title, w in zip(columns, ["MSSV", "Họ tên", "Lớp", "Số buổi vắng", "Số buổi muộn", "Mức độ"], [80, 150, 55, 80, 85, 90]):
             tree.heading(col, text=title)
@@ -644,20 +660,14 @@ class DashboardWindow:
                 stats_str = f"Tổng số sinh viên: {stats.get('total_students', 0)}. Vắng mặt hôm nay: {stats.get('absent_today', 0)}."
                 
                 absent_list = ""
-                tree = None
-                for widget in self.content_frame.winfo_children():
-                    for child in widget.winfo_children():
-                        for subchild in child.winfo_children():
-                            if isinstance(subchild, tk.Frame):
-                                for element in subchild.winfo_children():
-                                    if isinstance(element, ttk.Treeview):
-                                        tree = element
-                if tree:
-                    for child in tree.get_children():
-                        v = tree.item(child)["values"]
-                        if v: absent_list += f"- {v[1]} ({v[0]}): vắng {v[3]} ({v[4]})\n"
+                if hasattr(self, 'absent_tree') and self.absent_tree:
+                    for child in self.absent_tree.get_children():
+                        v = self.absent_tree.item(child)["values"]
+                        if v: 
+                            absent_list += f"- {v[1]} ({v[0]}): vắng {v[3]} ({v[4]})\n"
                 
-                if not absent_list: absent_list = "Không có sinh viên nào vắng mặt nguy hiểm."
+                if not absent_list: 
+                    absent_list = "Không có sinh viên nào vắng mặt nguy hiểm."
 
                 answer = self.ai.analyze_attendance(stats_str, absent_list)
                 update_ui(answer)
