@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pickle
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Optional
 
 from database.database import Database
@@ -306,6 +307,14 @@ class DatabaseManager:
         encodings = []
 
         for row in rows:
+            image_path = row["image_path"]
+            if image_path and not Path(image_path).exists():
+                self.execute(
+                    "DELETE FROM face_encodings WHERE student_id=?",
+                    (row["student_id"],),
+                )
+                logger.info("Removed stale face encoding %s", row["student_id"])
+                continue
 
             encodings.append(
                 {
@@ -313,11 +322,18 @@ class DatabaseManager:
                     "encoding": pickle.loads(
                         row["encoding"]
                     ),
-                    "image_path": row["image_path"],
+                    "image_path": image_path,
                 }
             )
 
         return encodings
+
+    def delete_encoding(self, student_id: str) -> None:
+        """Xóa dữ liệu khuôn mặt đã mã hóa của sinh viên."""
+        self.execute(
+            "DELETE FROM face_encodings WHERE student_id=?",
+            (student_id,),
+        )
 
     # ==========================================================
     # Attendance (Đã nâng cấp để hỗ trợ Môn học)

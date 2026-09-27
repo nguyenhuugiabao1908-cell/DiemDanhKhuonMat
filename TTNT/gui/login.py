@@ -118,7 +118,11 @@ class LoginWindow:
         password = self.password_var.get().strip()
 
         if username == "" or password == "":
-            messagebox.showwarning("Thông báo", "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.")
+            messagebox.showwarning(
+                "Thiếu thông tin",
+                "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.",
+                parent=self.root,
+            )
             return
 
         try:
@@ -139,9 +143,18 @@ class LoginWindow:
                 ok = self.db.verify_admin(username, password)
 
             if not ok:
-                messagebox.showerror("Lỗi", "Sai tên đăng nhập hoặc mật khẩu.")
+                messagebox.showerror(
+                    "Đăng nhập thất bại",
+                    "Sai tên đăng nhập hoặc mật khẩu.",
+                    parent=self.root,
+                )
                 return
 
+            messagebox.showinfo(
+                "Đăng nhập thành công",
+                f"Chào mừng {username}!\nĐang mở Dashboard...",
+                parent=self.root,
+            )
             self.root.destroy()
             DashboardWindow(self.db, self.base_dir).run()
 

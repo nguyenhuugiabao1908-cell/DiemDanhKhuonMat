@@ -942,6 +942,7 @@ class RegisterFrame:
             if messagebox.askyesno("Xác nhận nguy hiểm", f"Bạn có chắc chắn muốn XÓA ảnh khuôn mặt của {name} không?\n\nHành động này không thể hoàn tác, sinh viên sẽ phải đứng trước camera để chụp lại.", parent=dialog):
                 import shutil
                 try:
+                    self.db.delete_encoding(mssv)
                     shutil.rmtree(faces_dir) # Xóa sạch thư mục chứa ảnh của SV này
                     messagebox.showinfo("Thành công", f"Đã xóa dữ liệu khuôn mặt của {name}.", parent=dialog)
                     dialog.destroy()

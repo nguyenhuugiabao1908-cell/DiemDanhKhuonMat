@@ -3,3 +3,9 @@ __pycache__/
 logs/
 attendance.db
 .vscode/
+data/faces/__pycache__/
+*.pyc
+logs/
+attendance.db
+.vscode/
+data/faces/
